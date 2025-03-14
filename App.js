@@ -38,13 +38,36 @@ const ThreeDScene = ({ orientationRef }) => {
       0.1,
       1000
     );
-
+    
     const renderer = new ExpoTHREE.Renderer({ gl });
     renderer.setSize(gl.drawingBufferWidth, gl.drawingBufferHeight);
 
+    // Cube geometry
     const geometry = new THREE.BoxGeometry();
-    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    
+    // Transparent material for faces
+    const material = new THREE.MeshBasicMaterial({ 
+      color: 0x00ff00,
+      transparent: true,
+      opacity: 0.3
+    });
+    
+    // Gray wireframe material for borders
+    const wireframeMaterial = new THREE.LineBasicMaterial({
+      color: 0x808080,
+      linewidth: 2
+    });
+
+    // Create cube with transparent faces
     const cube = new THREE.Mesh(geometry, material);
+    
+    // Add wireframe borders
+    const wireframe = new THREE.LineSegments(
+      new THREE.EdgesGeometry(geometry),
+      wireframeMaterial
+    );
+    
+    cube.add(wireframe);
     scene.add(cube);
 
     camera.position.z = 5;
@@ -53,11 +76,11 @@ const ThreeDScene = ({ orientationRef }) => {
       requestAnimationFrame(animate);
 
       const { alpha, beta, gamma } = orientationRef.current;
-
+      
       cube.rotation.order = 'ZXY';
-      cube.rotation.z = alpha; // Z-axis rotation (compass direction)
-      cube.rotation.x = beta;  // X-axis rotation (front/back tilt)
-      cube.rotation.y = gamma; // Y-axis rotation (left/right tilt)
+      cube.rotation.z = alpha;
+      cube.rotation.x = beta;
+      cube.rotation.y = gamma;
 
       renderer.render(scene, camera);
       gl.endFrameEXP();
