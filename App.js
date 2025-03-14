@@ -56,7 +56,7 @@ const ThreeDScene = ({ orientationRef }) => {
     // Gray wireframe material for borders
     const wireframeMaterial = new THREE.LineBasicMaterial({
       color: 0xAAAAAA, // Brighter gray
-      linewidth: 2
+      linewidth: 4
     });
 
     // Create cube with transparent faces
