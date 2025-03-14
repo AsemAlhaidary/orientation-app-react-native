@@ -29,16 +29,31 @@ const useOrientation = () => {
 
 const ThreeDScene = ({ orientationRef }) => {
   let animationFrameId;
+  // const camera = useRef<THREE.PerspectiveCamera | null>(null);
 
   const onContextCreate = async (gl) => {
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x1a1a1a); // Dark background
+
+    // Set up camera with angled position
     const camera = new THREE.PerspectiveCamera(
       75,
       gl.drawingBufferWidth / gl.drawingBufferHeight,
       0.1,
       1000
     );
+    camera.position.set(0, 0, 5);
+    camera.lookAt(0, 0, 0);
+
+    // // Position camera 30 degrees above the back
+    // const radius = 5; // Distance from cube
+    // const angle = 30 * (Math.PI / 180); // Convert degrees to radians
+    // camera.position.set(
+    //   0,
+    //   radius * Math.sin(angle),  // Vertical position
+    //   -radius * Math.cos(angle)  // Horizontal position (negative z = behind)
+    // );
+    // camera.lookAt(0, 0, 0); // Make camera focus on cube
 
     const renderer = new ExpoTHREE.Renderer({ gl });
     renderer.setSize(gl.drawingBufferWidth, gl.drawingBufferHeight);
@@ -47,7 +62,7 @@ const ThreeDScene = ({ orientationRef }) => {
     const geometry = new THREE.BoxGeometry();
 
     // Modified cube materials for dark theme
-    const material = new THREE.MeshBasicMaterial({ 
+    const material = new THREE.MeshBasicMaterial({
       color: 0x2194f3, // Blue color
       transparent: true,
       opacity: 0.3
@@ -69,19 +84,22 @@ const ThreeDScene = ({ orientationRef }) => {
     );
 
     cube.add(wireframe);
+    cube.rotation.order = 'YXZ'; // Important rotation order for device orientation
     scene.add(cube);
 
-    camera.position.z = 5;
+    // camera.position.z = 5;
 
     const animate = () => {
       requestAnimationFrame(animate);
 
       const { alpha, beta, gamma } = orientationRef.current;
 
-      cube.rotation.order = 'ZXY';
-      cube.rotation.z = alpha;
-      cube.rotation.x = beta;
-      cube.rotation.y = gamma;
+      // Convert device orientation to Three.js rotations
+      cube.rotation.set(
+        -beta,          // X-axis (vertical tilt)
+        alpha,          // Y-axis (compass direction)
+        -gamma          // Z-axis (horizontal tilt)
+      );
 
       renderer.render(scene, camera);
       gl.endFrameEXP();
