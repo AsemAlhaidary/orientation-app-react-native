@@ -32,41 +32,42 @@ const ThreeDScene = ({ orientationRef }) => {
 
   const onContextCreate = async (gl) => {
     const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a1a1a); // Dark background
     const camera = new THREE.PerspectiveCamera(
       75,
       gl.drawingBufferWidth / gl.drawingBufferHeight,
       0.1,
       1000
     );
-    
+
     const renderer = new ExpoTHREE.Renderer({ gl });
     renderer.setSize(gl.drawingBufferWidth, gl.drawingBufferHeight);
 
     // Cube geometry
     const geometry = new THREE.BoxGeometry();
-    
-    // Transparent material for faces
+
+    // Modified cube materials for dark theme
     const material = new THREE.MeshBasicMaterial({ 
-      color: 0x00ff00,
+      color: 0x2194f3, // Blue color
       transparent: true,
       opacity: 0.3
     });
-    
+
     // Gray wireframe material for borders
     const wireframeMaterial = new THREE.LineBasicMaterial({
-      color: 0x808080,
+      color: 0xAAAAAA, // Brighter gray
       linewidth: 2
     });
 
     // Create cube with transparent faces
     const cube = new THREE.Mesh(geometry, material);
-    
+
     // Add wireframe borders
     const wireframe = new THREE.LineSegments(
       new THREE.EdgesGeometry(geometry),
       wireframeMaterial
     );
-    
+
     cube.add(wireframe);
     scene.add(cube);
 
@@ -76,7 +77,7 @@ const ThreeDScene = ({ orientationRef }) => {
       requestAnimationFrame(animate);
 
       const { alpha, beta, gamma } = orientationRef.current;
-      
+
       cube.rotation.order = 'ZXY';
       cube.rotation.z = alpha;
       cube.rotation.x = beta;
@@ -119,17 +120,18 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#000000', // Black background
   },
   overlay: {
     position: 'absolute',
     top: 50,
     left: 20,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(30, 30, 30, 0.8)', // Darker overlay
     padding: 10,
     borderRadius: 5,
   },
   text: {
-    color: 'white',
+    color: '#FFFFFF', // White text
     fontSize: 16,
   },
 });
