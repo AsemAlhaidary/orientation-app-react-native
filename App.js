@@ -30,9 +30,31 @@ const useOrientation = () => {
 const ThreeDScene = ({ orientationRef }) => {
   let animationFrameId;
 
+  // Radial gradient shader
+  const gradientShader = {
+    uniforms: {},
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      varying vec2 vUv;
+      void main() {
+        vec2 center = vec2(0.5, 0.5);
+        float distance = length(vUv - center);
+        float intensity = 1.0 - smoothstep(0.0, 0.7, distance);
+        vec3 color = mix(vec3(0.0), vec3(0.9), intensity);
+        gl_FragColor = vec4(color, 1.0);
+      }
+    `
+  };
+
   const onContextCreate = async (gl) => {
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x1a1a1a); // Dark background
+    // scene.background = new THREE.Color(0x1a1a1a); // Dark background
     const camera = new THREE.PerspectiveCamera(
       75,
       gl.drawingBufferWidth / gl.drawingBufferHeight,
@@ -40,8 +62,21 @@ const ThreeDScene = ({ orientationRef }) => {
       1000
     );
 
+    camera.position.z = 5;
+
     const renderer = new ExpoTHREE.Renderer({ gl });
     renderer.setSize(gl.drawingBufferWidth, gl.drawingBufferHeight);
+
+    // Add gradient background
+    const bgGeometry = new THREE.PlaneGeometry(2, 2);
+    const bgMaterial = new THREE.ShaderMaterial({
+      ...gradientShader,
+      depthTest: false,
+      depthWrite: false
+    });
+    const background = new THREE.Mesh(bgGeometry, bgMaterial);
+    background.renderOrder = -1; // Ensure it renders first
+    scene.add(background);
 
     // Cube geometry
     const geometry = new THREE.BoxGeometry();
@@ -69,16 +104,14 @@ const ThreeDScene = ({ orientationRef }) => {
     );
 
     cube.add(wireframe);
+    cube.rotation.order = 'ZXY';
     scene.add(cube);
-
-    camera.position.z = 5;
 
     const animate = () => {
       requestAnimationFrame(animate);
 
       const { alpha, beta, gamma } = orientationRef.current;
 
-      cube.rotation.order = 'ZXY';
       cube.rotation.z = alpha;
       cube.rotation.x = beta;
       cube.rotation.y = gamma;
