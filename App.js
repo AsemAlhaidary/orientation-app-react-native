@@ -3,108 +3,85 @@ import { StyleSheet, View, Text } from 'react-native';
 import { GLView } from 'expo-gl';
 import * as THREE from 'three';
 import ExpoTHREE from 'expo-three';
-import SensorFusion from 'react-native-sensor-fusion';
-
-const ARROW_LENGTH = 1.5;
-const ARROW_COLORS = {
-  up: '#00ff00',     // Green (vertical)
-  north: '#ff0000',  // Red (magnetic north)
-  forward: '#0000ff' // Blue (device forward)
-};
+import { DeviceMotion } from 'expo-sensors';
 
 const useOrientation = () => {
-  const [orientation, setOrientation] = useState({
-    qw: 1, qx: 0, qy: 0, qz: 0
-  });
-  // const orientationRef = useRef(orientation);
+  const [orientation, setOrientation] = useState({ alpha: 0, beta: 0, gamma: 0 });
+  const orientationRef = useRef(orientation);
 
   useEffect(() => {
-    SensorFusion.start();
-    const subscription = SensorFusion.onUpdate(setOrientation);
+    DeviceMotion.setUpdateInterval(16); // ~60fps
 
-    return () => {
-      SensorFusion.stop();
-      subscription.remove();
-    };
+    const subscription = DeviceMotion.addListener((data) => {
+      if (data.rotation) {
+        const { alpha, beta, gamma } = data.rotation;
+        const newOrientation = { alpha, beta, gamma };
+        orientationRef.current = newOrientation;
+        setOrientation(newOrientation);
+      }
+    });
+
+    return () => subscription.remove();
   }, []);
 
-  return { orientation };
+  return { orientation, orientationRef };
 };
 
 const ThreeDScene = ({ orientationRef }) => {
-  // let animationFrameId;
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(
-    75,
-    gl.drawingBufferWidth/gl.drawingBufferHeight,
-    0.1,
-    1000
-  );
-
-  // Create sphere
-  const createSphere = () => {
-    const geometry = new THREE.SphereGeometry(1, 32, 32);
-    const material = new THREE.MeshBasicMaterial({
-      color: 0x808080,
-      wireframe: true
-    });
-    return new THREE.Mesh(geometry, material);
-  };
-
-  // Create directional arrows
-  const createArrows = () => ({
-    up: new THREE.ArrowHelper(
-      new THREE.Vector3(0, 1, 0),
-      new THREE.Vector3(0, 0, 0),
-      ARROW_LENGTH,
-      ARROW_COLORS.up
-    ),
-    north: new THREE.ArrowHelper(
-      new THREE.Vector3(0, 0, -1),
-      new THREE.Vector3(0, 0, 0),
-      ARROW_LENGTH,
-      ARROW_COLORS.north
-    ),
-    forward: new THREE.ArrowHelper(
-      new THREE.Vector3(0, 0, 1),
-      new THREE.Vector3(0, 0, 0),
-      ARROW_LENGTH,
-      ARROW_COLORS.forward
-    )
-  });
+  let animationFrameId;
 
   const onContextCreate = async (gl) => {
+    const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x1a1a1a); // Dark background
-    camera.position.z = 5;
+    const camera = new THREE.PerspectiveCamera(
+      75,
+      gl.drawingBufferWidth / gl.drawingBufferHeight,
+      0.1,
+      1000
+    );
 
-    // Create objects
-    const sphere = createSphere();
-    const arrows = createArrows();
-
-    scene.add(sphere, ...Object.values(arrows));
-
-    // Renderer setup
     const renderer = new ExpoTHREE.Renderer({ gl });
     renderer.setSize(gl.drawingBufferWidth, gl.drawingBufferHeight);
+
+    // Cube geometry
+    const geometry = new THREE.BoxGeometry();
+
+    // Modified cube materials for dark theme
+    const material = new THREE.MeshBasicMaterial({ 
+      color: 0x2194f3, // Blue color
+      transparent: true,
+      opacity: 0.3
+    });
+
+    // Gray wireframe material for borders
+    const wireframeMaterial = new THREE.LineBasicMaterial({
+      color: 0xAAAAAA, // Brighter gray
+      linewidth: 4
+    });
+
+    // Create cube with transparent faces
+    const cube = new THREE.Mesh(geometry, material);
+
+    // Add wireframe borders
+    const wireframe = new THREE.LineSegments(
+      new THREE.EdgesGeometry(geometry),
+      wireframeMaterial
+    );
+
+    cube.add(wireframe);
+    scene.add(cube);
+
+    camera.position.z = 5;
 
     const animate = () => {
       requestAnimationFrame(animate);
 
-      // Update phone orientation
-      const quaternion = new THREE.Quaternion(
-        orientation.qx,
-        orientation.qy,
-        orientation.qz,
-        orientation.qw
-      );
+      const { alpha, beta, gamma } = orientationRef.current;
 
-      // Rotate sphere (phone body)
-      sphere.quaternion.copy(quaternion);
-
-      // Update forward vector (relative to phone orientation)
-      const forward = new THREE.Vector3(0, 0, 1);
-      forward.applyQuaternion(quaternion);
-      arrows.forward.setDirection(forward.normalize());
+      cube.rotation.order = 'ZXY';
+      cube.rotation.z = alpha;
+      cube.rotation.x = beta;
+      cube.rotation.y = gamma;
 
       renderer.render(scene, camera);
       gl.endFrameEXP();
@@ -115,7 +92,7 @@ const ThreeDScene = ({ orientationRef }) => {
 
   return (
     <GLView
-      style={styles.container}
+      style={{ flex: 1 }}
       onContextCreate={onContextCreate}
     />
   );
@@ -123,16 +100,14 @@ const ThreeDScene = ({ orientationRef }) => {
 
 const OrientationDisplay = ({ orientation }) => (
   <View style={styles.overlay}>
-    <Text style={styles.text}>Quaternion:</Text>
-    <Text style={styles.text}>W: {orientation.qw.toFixed(3)}</Text>
-    <Text style={styles.text}>X: {orientation.qx.toFixed(3)}</Text>
-    <Text style={styles.text}>Y: {orientation.qy.toFixed(3)}</Text>
-    <Text style={styles.text}>Z: {orientation.qz.toFixed(3)}</Text>
+    <Text style={styles.text}>Alpha: {orientation.alpha.toFixed(2)}</Text>
+    <Text style={styles.text}>Beta: {orientation.beta.toFixed(2)}</Text>
+    <Text style={styles.text}>Gamma: {orientation.gamma.toFixed(2)}</Text>
   </View>
 );
 
 export default function App() {
-  const { orientation } = useOrientation();
+  const { orientation, orientationRef } = useOrientation();
 
   return (
     <View style={styles.container}>
@@ -143,20 +118,20 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  fullscreen: {
+  container: {
     flex: 1,
-    backgroundColor: '#000'
+    backgroundColor: '#000000', // Black background
   },
   overlay: {
     position: 'absolute',
     top: 50,
-    right: 20,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    left: 20,
+    backgroundColor: 'rgba(30, 30, 30, 0.8)', // Darker overlay
     padding: 10,
-    borderRadius: 5
+    borderRadius: 5,
   },
   text: {
-    color: '#fff',
-    fontSize: 14
-  }
+    color: '#FFFFFF', // White text
+    fontSize: 16,
+  },
 });
