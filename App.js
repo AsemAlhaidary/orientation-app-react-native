@@ -4,6 +4,7 @@ import { GLView } from 'expo-gl';
 import * as THREE from 'three';
 import ExpoTHREE from 'expo-three';
 import { DeviceMotion } from 'expo-sensors';
+import { BlurView } from 'expo-blur';
 
 const useOrientation = () => {
   const [orientation, setOrientation] = useState({ alpha: 0, beta: 0, gamma: 0 });
@@ -32,7 +33,8 @@ const ThreeDScene = ({ orientationRef }) => {
 
   const onContextCreate = async (gl) => {
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x1a1a1a); // Dark background
+    scene.background = null; // Make Three.js scene transparent
+
     const camera = new THREE.PerspectiveCamera(
       75,
       gl.drawingBufferWidth / gl.drawingBufferHeight,
@@ -40,7 +42,11 @@ const ThreeDScene = ({ orientationRef }) => {
       1000
     );
 
-    const renderer = new ExpoTHREE.Renderer({ gl });
+    const renderer = new ExpoTHREE.Renderer({ 
+      gl,
+      alpha: true, // Enable transparency
+      antialias: true 
+    });
     renderer.setSize(gl.drawingBufferWidth, gl.drawingBufferHeight);
 
     // Cube geometry
@@ -111,7 +117,21 @@ export default function App() {
 
   return (
     <View style={styles.container}>
+      {/* Background Container */}
+      <View style={styles.background}>
+        <BlurView 
+          style={styles.radialGradient}
+          intensity={30}
+          tint="dark"
+        >
+          <View style={styles.gradientInner} />
+        </BlurView>
+      </View>
+
+      {/* 3D Scene (should be on top of background) */}
       <ThreeDScene orientationRef={orientationRef} />
+
+      {/* Orientation Display */}
       <OrientationDisplay orientation={orientation} />
     </View>
   );
@@ -121,6 +141,22 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000000', // Black background
+  },
+  background: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: 'hidden',
+  },
+  radialGradient: {
+    width: '200%',
+    height: '200%',
+    position: 'absolute',
+    top: '-50%',
+    left: '-50%',
+    borderRadius: 1000,
+  },
+  gradientInner: {
+    flex: 1,
+    backgroundColor: 'rgba(150, 150, 150, 0.15)',
   },
   overlay: {
     position: 'absolute',
