@@ -11,7 +11,6 @@ const useOrientation = () => {
 
   useEffect(() => {
     DeviceMotion.setUpdateInterval(16); // ~60fps
-
     const subscription = DeviceMotion.addListener((data) => {
       if (data.rotation) {
         const { alpha, beta, gamma } = data.rotation;
@@ -20,7 +19,6 @@ const useOrientation = () => {
         setOrientation(newOrientation);
       }
     });
-
     return () => subscription.remove();
   }, []);
 
@@ -28,61 +26,45 @@ const useOrientation = () => {
 };
 
 const ThreeDScene = ({ orientationRef }) => {
-  let animationFrameId;
-
   const onContextCreate = async (gl) => {
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x1a1a1a); // Dark background
+    scene.background = new THREE.Color(0x1a1a1a);
+
     const camera = new THREE.PerspectiveCamera(
       75,
       gl.drawingBufferWidth / gl.drawingBufferHeight,
       0.1,
       1000
     );
+    camera.position.z = 3;
 
     const renderer = new ExpoTHREE.Renderer({ gl });
     renderer.setSize(gl.drawingBufferWidth, gl.drawingBufferHeight);
 
-    // Cube geometry
-    const geometry = new THREE.BoxGeometry();
+    const sphereGeometry = new THREE.SphereGeometry(0.5, 32, 32);
+    const sphereMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true });
+    const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+    scene.add(sphere);
 
-    // Modified cube materials for dark theme
-    const material = new THREE.MeshBasicMaterial({ 
-      color: 0x2194f3, // Blue color
-      transparent: true,
-      opacity: 0.3
-    });
-
-    // Gray wireframe material for borders
-    const wireframeMaterial = new THREE.LineBasicMaterial({
-      color: 0xAAAAAA, // Brighter gray
-      linewidth: 4
-    });
-
-    // Create cube with transparent faces
-    const cube = new THREE.Mesh(geometry, material);
-
-    // Add wireframe borders
-    const wireframe = new THREE.LineSegments(
-      new THREE.EdgesGeometry(geometry),
-      wireframeMaterial
-    );
-
-    cube.add(wireframe);
-    scene.add(cube);
-
-    camera.position.z = 5;
+    // Arrow helpers (direction vectors)
+    const upArrow = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 0), 1, 0x00ff00);
+    const northArrow = new THREE.ArrowHelper(new THREE.Vector3(0, 0, -1), new THREE.Vector3(0, 0, 0), 1, 0xff0000);
+    const forwardArrow = new THREE.ArrowHelper(new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 0), 1, 0x0000ff);
+    scene.add(upArrow, northArrow, forwardArrow);
 
     const animate = () => {
       requestAnimationFrame(animate);
-
+      
       const { alpha, beta, gamma } = orientationRef.current;
-
-      cube.rotation.order = 'ZXY';
-      cube.rotation.z = alpha;
-      cube.rotation.x = beta;
-      cube.rotation.y = gamma;
-
+      const quaternion = new THREE.Quaternion().setFromEuler(
+        new THREE.Euler(beta, alpha, -gamma, 'YXZ')
+      );
+      
+      sphere.quaternion.copy(quaternion);
+      upArrow.setDirection(new THREE.Vector3(0, 1, 0).applyQuaternion(quaternion));
+      northArrow.setDirection(new THREE.Vector3(0, 0, -1).applyQuaternion(quaternion));
+      forwardArrow.setDirection(new THREE.Vector3(1, 0, 0).applyQuaternion(quaternion));
+      
       renderer.render(scene, camera);
       gl.endFrameEXP();
     };
@@ -90,12 +72,7 @@ const ThreeDScene = ({ orientationRef }) => {
     animate();
   };
 
-  return (
-    <GLView
-      style={{ flex: 1 }}
-      onContextCreate={onContextCreate}
-    />
-  );
+  return <GLView style={{ flex: 1 }} onContextCreate={onContextCreate} />;
 };
 
 const OrientationDisplay = ({ orientation }) => (
@@ -108,7 +85,6 @@ const OrientationDisplay = ({ orientation }) => (
 
 export default function App() {
   const { orientation, orientationRef } = useOrientation();
-
   return (
     <View style={styles.container}>
       <ThreeDScene orientationRef={orientationRef} />
@@ -120,18 +96,18 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000', // Black background
+    backgroundColor: '#000000',
   },
   overlay: {
     position: 'absolute',
     top: 50,
     left: 20,
-    backgroundColor: 'rgba(30, 30, 30, 0.8)', // Darker overlay
+    backgroundColor: 'rgba(30, 30, 30, 0.8)',
     padding: 10,
     borderRadius: 5,
   },
   text: {
-    color: '#FFFFFF', // White text
+    color: '#FFFFFF',
     fontSize: 16,
   },
 });
